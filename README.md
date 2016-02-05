@@ -14,3 +14,11 @@
  rabbitctl add_vhost chat
  rabbitctl list_vhosts
  rabbitctl delete_vhost chat
+```
+
+set config, write, read permission of a vhost.
+```
+rabbitmqctl set_permissions -p chat user ".*" ".*" ".*"
+rabbitmqctl clear_permissions -p chat user
+rabbitmqctl clear_permissions -p user  //clear all vhosts permission
+```
