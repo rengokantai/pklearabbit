@@ -7,7 +7,7 @@ sudo apt-get update && sudo apt-get install -y rabbitmq-server
 ```
 #####cp3
 ###### Adminstering Rabbitmq instances
-config user
+config user (we create user=root pass=root vhost=test)
 ```
 service rabbitmq-server status
 rabbitmq-plugins enable rabbitmq_management
@@ -19,19 +19,24 @@ rabbitmqctl delete_user user
  
 config vhost
 ```
-rabbitctl add_vhost chat
+rabbitctl add_vhost test
 rabbitctl list_vhosts
-rabbitctl delete_vhost chat
+rabbitctl delete_vhost test
 ```
 
 set config, write, read permission of a vhost. 
 ```
-rabbitmqctl set_permissions -p chat user ".*" ".*" ".*"
-rabbitmqctl clear_permissions -p chat user
+rabbitmqctl set_permissions -p test user ".*" ".*" ".*"
+rabbitmqctl clear_permissions -p test user
 rabbitmqctl clear_permissions -p user  //clear all vhosts permission
 ```
 using python
-declare a permission
+declare a permission(first, change permission)
+```
+cd /var/lib/rabbitmq/mnesia/rabbit@a-plugins-expand/rabbitmq_management-3.6.2/priv/www/cli
+chmod +x rabbitmqadmin
+```
+then
 ```
 root@a:/var/lib/rabbitmq/mnesia/rabbit@a-plugins-expand/rabbitmq_management-3.6.2/priv/www/cli# ./rabbitmqadmin declare permission vhost=test user=root configure=.* write=.* read=.*
 ```
@@ -55,5 +60,74 @@ list all exchanges
 ./rabbitmqadmin -V test list exchanges -u root -p root
 ```
 
+Administering queue(python)
+```
+./rabbitmqadmin declare queue name=error_logs durable=false  //without auth
+./rabbitmqadmin -V test declare queue name=error_logs -u root -p root   //create a queue for volume, needs auth
+./rabbitmqadmin -V test delete queue name=error_logs -u root -p root
+./rabbitmqadmin list queues  //default
+./rabbitmqadmin -V test list queues -u root -p root  //for volume name
+```
 
+Administering binding(python)
+bind:
+```
+./rabbitmqadmin declare binding source=logs destination=error_logs    //bind logs exchange to error_logs queue
+```
+post a message to queue
+```
+./rabbitmqadmin publish exchange=logs routing_key= payload="test"
+```
+get message from error_logs queue:
+```
+./rabbitmqadmin get queue=error_logs
+```
+purge queue
+```
+./rabbitmqadmin purge queue name=error_logs   //mind this very weird syntax
+```
 
+Administering policies
+```
+rabbitmqctl set_policy max-queue-len "error_logs" '{"max-length-bytes":20000}' --apply-to queues //nix style
+rabbitmqctl set_policy max-queue-len "error_logs" "{""max-length-bytes"":20000}" --apply-to queues //windows style
+```
+clear
+```
+rabbitmqctl clear_policy max-queue-len
+```
+another test, set message ttl policy
+```
+rabbitmqctl set_policy ttl ".*" '{"message-ttl":3000}' --apply-to queues   //message ttl
+```
+queue ttl
+```
+rabbitmqctl set_policy ttl ".*" '{"expires":3000}' --apply-to queues   //message ttl
+```
+
+clear
+```
+rabbitmqctl clear_policy ttl
+```
+
+test queue consuming
+```
+./rabbitmqadmin declare policy name=ttl pattern="^error_logs$" definition='{"dead-letter-exchange":"logs_dlx","message-ttl":3000}' apply-to=queues
+ueues
+./rabbitmqadmin declare queue name=error_logs_dlx
+./rabbitmqadmin declare binding source=logs_dlx destination=error_logs_dlx
+./rabbitmqadmin publish exchange=logs routing_key= payload="xxx"
+./rabbitmqadmin get queue=error_logs_dlx
+./rabbitmqadmin purge queue=error_logs_dlx
+```
+
+python style
+```
+./rabbitmq list policies
+./rabbitmq delete policy name=ttl
+```
+Backing up broker metadata
+```
+./rabbitmqadmin export broker.json
+./rabbitmqadmin export broker.json
+```
