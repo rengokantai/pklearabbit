@@ -1,9 +1,7 @@
 #### pklearabbit
 install rabbitmq
 ```
-echo 'deb http://www.rabbitmq.com/debian/ testing main' |sudo tee /etc/apt/sources.list.d/rabbitmq.list
-wget -O- https://www.rabbitmq.com/rabbitmq-release-signing-key.asc |sudo apt-key add -
-sudo apt-get update && sudo apt-get install -y rabbitmq-server
+echo 'deb http://www.rabbitmq.com/debian/ testing main' |sudo tee /etc/apt/sources.list.d/rabbitmq.list && wget -O- https://www.rabbitmq.com/rabbitmq-release-signing-key.asc |sudo apt-key add - && sudo apt-get update && sudo apt-get install -y rabbitmq-server
 ```
 #####cp3
 ###### Adminstering Rabbitmq instances
@@ -131,3 +129,87 @@ Backing up broker metadata
 ./rabbitmqadmin export broker.json
 ./rabbitmqadmin export broker.json
 ```
+######Installing RabbitMQ plugins
+```
+rabbitmq-plugins enable rabbitmq_federation
+```
+#####cp4 clustering
+first, disable all plugins
+```
+rabbitmq-plugins disable rabbitmq_management
+```
+
+Create cluster.(blood) hostname must be uppcase+rabbit, E.x. RABBIT1, RABBIT2
+machine1:
+```
+vim `find / -name .erlang.cookie`  //copy key
+```
+machine2/3:  
+Edit host:
+```
+<private ip> RABBIT1 RABBIT1
+```
+Edit cookie:
+```
+(same as machine1)
+```
+start:
+```
+rabbmimqctl stop_app
+rabbitmqctl join_cluster rabbit@RABBIT1
+rabbitmqctl start_app
+```
+reactive plugins:  
+node1:
+```
+rabbitmq-plugins enable rabbitmq_management
+```
+others
+```
+rabbitmq-plugins enable rabbitmq_management_agent
+```
+check cluster status
+```
+rabbitmqctl cluster_status
+```
+REMOVE rabbit2 from rabbit1:
+```
+rabbitmqctl stop_app   //rabbit2
+rabbitmqctl forget_cluster_node rabbit@RABBIT2  //rabbit1
+rabbitmqctl reset  //rabbit2
+rabbitmqctl start_app  //rabbit2
+```
+
+#####cp7 Performance Tuning
+######Performance tuning of rabbitmq
+memory watermark(original=0.4,if ram=512mb,watermark=196mb)
+```
+rabbitmqctl set_vm_memory_high_watermark 0.8
+```
+set config file, location should be
+```
+/etc/rabbitmq/rabbitmq-env.conf  //default not vailable, search by
+find / -name rabbitmq.*
+```
+
+
+######Monitoring of rabbitmq instances
+```
+apt-get update
+apt-get install nagios3 nagios-nrpe-plugin
+```
+login:
+```
+ip/nagios3
+```
+auth:
+```
+nagiosadmin:pass
+```
+
+#####chap9 security
+######Authentication
+```
+apt-get install slapd ldap-utils
+```
+
